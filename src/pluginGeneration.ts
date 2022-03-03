@@ -320,6 +320,7 @@ export async function genPluginStr(origSel, opts?) {
 
 	}
 
+/*
 	function collectImageHash(node) {
 		if ('fills' in node) {
 			for (var i = 0; i < node.fills.length; i++) {
@@ -344,6 +345,7 @@ export async function genPluginStr(origSel, opts?) {
 			return fills
 		}
 	}
+*/
 
 	// async function createImageHash(node) {
 	// 	if ('fills' in node) {
@@ -997,6 +999,40 @@ var ${Ref(node)} = figma.create${v.titleCase(node.type)}()\n`
             })
         }
 
+	function generateImagesHash(nodes, data){
+		let result = data || [];
+		if (!Array.isArray(nodes)) nodes = [nodes];
+
+		for (let i in nodes) {
+			let nodeElement = nodes[i];
+			if (typeof nodeElement != 'undefined') {
+
+				// find all the images hash
+				if (nodeElement.type == 'FRAME' || nodeElement.type == 'INSTANCE' || nodeElement.type == 'COMPONENT') {
+					if (nodeElement.fills){
+						for(let j in nodeElement.fills){
+							if (nodeElement.fills[j].type == "IMAGE"){
+								result.push(nodeElement.fills[j].imageHash);
+							}
+						}
+					}
+				}
+				if (nodeElement.children){
+					result = [...result, ...generateImagesHash(nodeElement.children)]
+				}
+			}
+		}
+		return result;
+	}
+
+	async function generateImages(arr){
+		for (let i in arr){
+			const image = figma.getImageByHash(arr[i]);
+			let binImage = ( await image.getBytesAsync() );
+
+			str `figma.createImage(new Uint8Array([${binImage}]))`
+		}
+	}
 
 
         // figma.showUI(__html__, { width: 320, height: 480 });
@@ -1022,7 +1058,7 @@ var ${Ref(node)} = figma.create${v.titleCase(node.type)}()\n`
 	`
 		}
 
-	async function generateImages() {
+	/*async function generateImages() {
 		var array = []
 		if (images && images.length > 0) {
 			for (var i = 0; i < images.length; i++) {
@@ -1040,7 +1076,7 @@ var ${Ref(node)} = figma.create${v.titleCase(node.type)}()\n`
 		}
 
 		return array
-	}
+	}*/
 
 	// Create styles
 	if (styles) {
@@ -1127,8 +1163,10 @@ var ${Ref(node)} = figma.create${v.titleCase(node.type)}()\n`
 	`
 	}
 
-	// var imageArray = await generateImages()
+	let hashes = generateImagesHash(selection);
+	var imageArray = await generateImages(hashes)
 
+	// var imageArray = await generateImages()
 	// var imageString = ""
 	// if (imageArray && imageArray.length > 0) {
 	// 	imageString = imageArray.join()
